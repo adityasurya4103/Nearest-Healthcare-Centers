@@ -1,0 +1,77 @@
+const axios = require('axios');
+const HealthCareCenter = require('../models/healthCareCenter');
+
+require('dotenv').config();
+
+const GEOAPIFY_API_KEY = process.env.GEOAPIFY_API_KEY;
+console.log("GEOAPIFY_API_KEY:", GEOAPIFY_API_KEY);
+
+
+
+function calculateDistance(lat1, lon1, lat2, lon2) {
+    const R = 6371; // Radius of the earth in km
+    const toRad = (value) => (value * Math.PI) / 180;
+
+    const dLat = toRad(lat2 - lat1);
+    const dLon = toRad(lon2 - lon1);
+
+    const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(toRad(lat1)) *
+        Math.cos(toRad(lat2)) *
+        Math.sin(dLon / 2) *
+        Math.sin(dLon / 2);
+
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+}
+
+async function assignNearestHealthCareCenter(pincode) {
+    try {
+        // Step 1: Get lat/lon from pincode using Geoapify
+        const geoUrl = `https://api.geoapify.com/v1/geocode/search?text=${pincode}&format=json&apiKey=${GEOAPIFY_API_KEY}`;
+        const response = await axios.get(geoUrl);
+
+        if (!response.data.results || response.data.results.length === 0) {
+            throw new Error('No coordinates found for the given pincode');
+        }
+
+        const { lat, lon } = response.data.results[0];
+
+        // Step 2: Get all healthcare centers
+        const centers = await HealthCareCenter.find();
+
+        if (centers.length === 0) {
+            throw new Error('No healthcare centers available');
+        }
+
+        // Step 3: Find the nearest center
+        let nearest = null;
+        let minDistance = Infinity;
+
+        centers.forEach(center => {
+            const dist = calculateDistance(
+                lat,
+                lon,
+                center.location.latitude,
+                center.location.longitude
+            );
+
+            if (dist < minDistance) {
+                minDistance = dist;
+                nearest = center;
+            }
+        });
+
+        if (!nearest) {
+            throw new Error('Could not find nearest center');
+        }
+
+        return nearest.centerId;
+    } catch (error) {
+        console.error('❌ Error assigning nearest healthcare center:', error.message);
+        throw error;
+    }
+}
+
+module.exports = { assignNearestHealthCareCenter };
