@@ -1,4 +1,4 @@
-# SuggestNearestCoordinatesUsingHaversineWithLatitudeAndLongitude
+# Suggest Nearest Coordinates Using Haversine Formula With Latitude And Longitude
 
 # This Repository contains the backend logic for Immuverse project for suggesting the nearest healthcare center 
 
